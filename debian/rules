@@ -1,0 +1,162 @@
+#!/usr/bin/make -f
+
+ifeq ($(GDB_TARGET),)
+TARGET := $(shell dpkg-architecture -qDEB_HOST_ARCH)
+else
+TARGET := $(GDB_TARGET)
+endif
+
+DEB_BUILD_GNU_TYPE := $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+DEB_HOST_GNU_TYPE  := $(shell dpkg-architecture -a$(TARGET) -qDEB_HOST_GNU_TYPE)
+DEB_HOST_ARCH  := $(shell dpkg-architecture -a$(TARGET) -qDEB_HOST_ARCH)
+p_src := gdb-source
+PACKAGES := gdb-$(DEB_HOST_GNU_TYPE) gdbserver gdb
+
+NJOBS :=$(shell getconf _NPROCESSORS_ONLN)
+ifneq ($(SETNJOBS),)
+ NJOBS :=$(SETNJOBS)
+endif
+
+ifeq ($(NJOBS),)
+ NJOBS :=1
+endif
+
+CONFARGS = \
+	--target=$(DEB_HOST_GNU_TYPE) \
+	--build=$(DEB_BUILD_GNU_TYPE) \
+	--prefix=/usr \
+	--mandir=/usr/share/man \
+	--infodir=/usr/share/info \
+	--without-uiout --enable-tui --disable-gdbtk --without-x --without-included-gettext
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# This is the debhelper compatability version to use.
+export DH_COMPAT=4
+
+DEB_SRCDIR=$(shell pwd)
+DEB_BUILDDIR=$(shell pwd)/build
+
+gencontrol:
+	sed \
+		-e 's/@gnuarch@/$(DEB_HOST_GNU_TYPE)/' \
+		-e 's/@arch@/$(DEB_HOST_ARCH)/' \
+		< debian/control.in \
+		> debian/control
+
+unpack: unpack-stamp gencontrol
+unpack-stamp:
+	for pkg in $(PACKAGES); do \
+		mkdir -p $(DEB_BUILDDIR)/$$pkg; \
+	done
+
+	mkdir -p debian/$(p_src)/usr/src/$(p_src)/debian/patches
+
+	# copy upstream sources
+	for f in *; do \
+		[ "$$f" != "debian" ] && \
+			( tar --exclude='\.svn' -cf - $$f ) | \
+			( cd debian/$(p_src)/usr/src/$(p_src)/; tar xf - ); \
+	done
+
+	# copy debian/ directory
+	for f in `find debian/ -maxdepth 1 -type f`; do \
+		cp -a $$f debian/$(p_src)/usr/src/$(p_src)/debian; \
+	done
+
+	# copy debian/patches
+	for f in `find debian/patches/ -maxdepth 1 -type f`; do \
+		cp $$f debian/$(p_src)/usr/src/$(p_src)/debian/patches; \
+	done
+
+	touch unpack-stamp
+
+patch-stamp:
+	QUILT_PATCHES=`pwd`/debian/patches quilt push -a
+	touch $@
+
+configure: configure-stamp
+configure-stamp: unpack-stamp patch-stamp
+	dh_testdir
+	cd $(DEB_BUILDDIR)/gdb-$(DEB_HOST_GNU_TYPE) && \
+		$(DEB_SRCDIR)/configure $(CONFARGS) \
+		--host=$(DEB_BUILD_GNU_TYPE)
+	cd $(DEB_BUILDDIR)/gdbserver && \
+		$(DEB_SRCDIR)/gdb/gdbserver/configure $(CONFARGS) \
+		--host=$(DEB_HOST_GNU_TYPE) \
+		CC=$(DEB_HOST_GNU_TYPE)-gcc LD=$(DEB_HOST_GNU_TYPE)-gcc
+	cd $(DEB_BUILDDIR)/gdb && \
+		$(DEB_SRCDIR)/configure $(CONFARGS) \
+		--host=$(DEB_HOST_GNU_TYPE)
+	touch configure-stamp
+
+build: configure-stamp build-stamp
+build-stamp:
+	dh_testdir
+	for pkg in $(PACKAGES); do \
+		echo "==========================="; \
+		echo "Building $$pkg"; \
+		echo "==========================="; \
+		$(MAKE) -j$(NJOBS) -C $(DEB_BUILDDIR)/$$pkg; \
+	done
+	touch build-stamp
+
+clean:
+	-QUILT_PATCHES=$(DEB_SRCDIR)/debian/patches quilt pop -a
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp configure-stamp unpack-stamp patch-stamp
+	rm -rf src build
+	dh_clean
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_installdirs
+
+	for pkg in $(PACKAGES); do \
+		mkdir -p $(DEB_SRCDIR)/debian/$$pkg; \
+		$(MAKE) -C $(DEB_BUILDDIR)/$$pkg install \
+			DESTDIR=$(DEB_SRCDIR)/debian/$$pkg; \
+	done
+
+	# kludges
+	rm -rf $(DEB_SRCDIR)/debian/gdb-$(DEB_HOST_GNU_TYPE)/usr/share/locale
+	rm -rf $(DEB_SRCDIR)/debian/gdb-$(DEB_HOST_GNU_TYPE)/usr/share/info
+
+# Build architecture-independent files.
+binary-indep: build install
+
+# Build architecture-dependent files.
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+
+	#dh_movefiles
+	#dh_installdocs -n
+	dh_installchangelogs 
+	dh_link
+	PATH=/usr/share/dpkg-cross:${PATH} dh_strip
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	# cross gdb
+	dh_shlibdeps -pgdb-$(DEB_HOST_GNU_TYPE)
+	dh_gencontrol -pgdb-$(DEB_HOST_GNU_TYPE)
+
+	# target gdbserver
+	DPKGCROSSARCH=$(DEB_HOST_ARCH) dh_shlibdeps -pgdbserver
+	DEB_HOST_ARCH=$(DEB_HOST_ARCH) dh_gencontrol -pgdbserver
+
+	# target gdb
+	DPKGCROSSARCH=$(DEB_HOST_ARCH) dh_shlibdeps -pgdb
+	DEB_HOST_ARCH=$(DEB_HOST_ARCH) dh_gencontrol -pgdb
+	
+	# gdb-source
+	dh_gencontrol -pgdb-source
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install configure gencontrol
