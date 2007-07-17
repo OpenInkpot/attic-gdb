@@ -28,7 +28,10 @@ CONFARGS = \
 	--prefix=/usr \
 	--mandir=/usr/share/man \
 	--infodir=/usr/share/info \
-	--without-uiout --enable-tui --disable-gdbtk --without-x --without-included-gettext
+	--without-uiout --enable-tui \
+	--disable-gdbtk --without-x \
+	--without-included-gettext \
+	--disable-nls
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
@@ -81,7 +84,7 @@ configure: configure-stamp
 configure-stamp: unpack-stamp patch-stamp
 	dh_testdir
 	cd $(DEB_BUILDDIR)/gdb-$(DEB_HOST_GNU_TYPE) && \
-		$(DEB_SRCDIR)/configure $(CONFARGS) \
+		env -u CC -u LD $(DEB_SRCDIR)/configure $(CONFARGS) \
 		--host=$(DEB_BUILD_GNU_TYPE)
 	cd $(DEB_BUILDDIR)/gdbserver && \
 		$(DEB_SRCDIR)/gdb/gdbserver/configure $(CONFARGS) \
@@ -99,7 +102,7 @@ build-stamp:
 		echo "==========================="; \
 		echo "Building $$pkg"; \
 		echo "==========================="; \
-		$(MAKE) -j$(NJOBS) -C $(DEB_BUILDDIR)/$$pkg; \
+		env -u CC -u LD $(MAKE) -j$(NJOBS) -C $(DEB_BUILDDIR)/$$pkg; \
 	done
 	touch build-stamp
 
