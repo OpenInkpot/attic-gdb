@@ -7,6 +7,7 @@ TARGET := $(GDB_TARGET)
 endif
 
 DEB_BUILD_GNU_TYPE := $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+DEB_BUILD_ARCH  := $(shell dpkg-architecture -a$(TARGET) -qDEB_BUILD_ARCH)
 DEB_HOST_GNU_TYPE  := $(shell dpkg-architecture -a$(TARGET) -qDEB_HOST_GNU_TYPE)
 DEB_HOST_ARCH  := $(shell dpkg-architecture -a$(TARGET) -qDEB_HOST_ARCH)
 p_src := gdb-source
@@ -142,8 +143,8 @@ binary-arch: build install
 	dh_fixperms
 	dh_installdeb
 	# cross gdb
-	dh_shlibdeps -pgdb-$(DEB_HOST_GNU_TYPE)
-	dh_gencontrol -pgdb-$(DEB_HOST_GNU_TYPE)
+	DEB_HOST_ARCH=$(DEB_BUILD_ARCH) dh_shlibdeps -pgdb-$(DEB_HOST_GNU_TYPE)
+	DEB_HOST_ARCH=$(DEB_BUILD_ARCH) dh_gencontrol -pgdb-$(DEB_HOST_GNU_TYPE)
 
 	# target gdbserver
 	DPKGCROSSARCH=$(DEB_HOST_ARCH) dh_shlibdeps -pgdbserver
