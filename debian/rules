@@ -7,11 +7,16 @@ TARGET := $(GDB_TARGET)
 endif
 
 DEB_BUILD_GNU_TYPE := $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
-DEB_BUILD_ARCH  := $(shell dpkg-architecture -a$(TARGET) -qDEB_BUILD_ARCH)
-DEB_HOST_GNU_TYPE  := $(shell dpkg-architecture -a$(TARGET) -qDEB_HOST_GNU_TYPE)
-DEB_HOST_ARCH  := $(shell dpkg-architecture -a$(TARGET) -qDEB_HOST_ARCH)
+DEB_BUILD_ARCH  := $(shell dpkg-architecture -f -a$(TARGET) -qDEB_BUILD_ARCH)
+DEB_HOST_GNU_TYPE  := $(shell dpkg-architecture -f -a$(TARGET) -qDEB_HOST_GNU_TYPE)
+DEB_HOST_ARCH  := $(shell dpkg-architecture -f -a$(TARGET) -qDEB_HOST_ARCH)
 p_src := gdb-source
-PACKAGES := gdb-$(DEB_HOST_GNU_TYPE) gdbserver gdb
+
+ifneq (,$(findstring target,$(SLIND_BUILD_OPTIONS)))
+ PACKAGES := gdbserver gdb
+else
+ PACKAGES := gdb-$(DEB_HOST_GNU_TYPE) gdbserver
+endif
 
 NJOBS :=$(shell getconf _NPROCESSORS_ONLN)
 ifneq ($(SETNJOBS),)
@@ -42,15 +47,15 @@ export DH_COMPAT=4
 DEB_SRCDIR=$(shell pwd)
 DEB_BUILDDIR=$(shell pwd)/build
 
-gencontrol:
+unpack: unpack-stamp
+unpack-stamp:
+	# generate debian/control
 	sed \
 		-e 's/@gnuarch@/$(DEB_HOST_GNU_TYPE)/' \
 		-e 's/@arch@/$(DEB_HOST_ARCH)/' \
 		< debian/control.in \
 		> debian/control
 
-unpack: unpack-stamp gencontrol
-unpack-stamp:
 	for pkg in $(PACKAGES); do \
 		mkdir -p $(DEB_BUILDDIR)/$$pkg; \
 	done
@@ -83,16 +88,19 @@ patch-stamp:
 configure: configure-stamp
 configure-stamp: unpack-stamp patch-stamp
 	dh_testdir
-	cd $(DEB_BUILDDIR)/gdb-$(DEB_HOST_GNU_TYPE) && \
-		env -u CC -u LD $(DEB_SRCDIR)/configure $(CONFARGS) \
-		--host=$(DEB_BUILD_GNU_TYPE)
 	cd $(DEB_BUILDDIR)/gdbserver && \
 		$(DEB_SRCDIR)/gdb/gdbserver/configure $(CONFARGS) \
 		--host=$(DEB_HOST_GNU_TYPE) \
 		CC=$(DEB_HOST_GNU_TYPE)-gcc LD=$(DEB_HOST_GNU_TYPE)-gcc
+ifneq (,$(findstring target,$(SLIND_BUILD_OPTIONS)))
 	cd $(DEB_BUILDDIR)/gdb && \
 		$(DEB_SRCDIR)/configure $(CONFARGS) \
 		--host=$(DEB_HOST_GNU_TYPE)
+else
+	cd $(DEB_BUILDDIR)/gdb-$(DEB_HOST_GNU_TYPE) && \
+		env -u CC -u LD $(DEB_SRCDIR)/configure $(CONFARGS) \
+		--host=$(DEB_BUILD_GNU_TYPE)
+endif
 	touch configure-stamp
 
 build: configure-stamp build-stamp
@@ -160,7 +168,7 @@ binary-arch: build install
 	# gdb-source
 	dh_gencontrol -pgdb-source
 	dh_md5sums
-	dh_builddeb
+	dh_builddeb -p$(p_src) $(patsubst %,-p%,$(PACKAGES))
 
 binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install configure gencontrol
+.PHONY: build clean binary-indep binary-arch binary install configure
