@@ -5,9 +5,9 @@ Priority: standard
 Standards-Version: 3.6.2
 Build-Depends: autoconf, libtool, texinfo (>= 4.7-2.2), tetex-bin, libncurses5-dev, libreadline4-dev (>= 4.2a-1), bison, gettext, debhelper (>= 4.9.0), quilt (>= 0.30-1), type-handling (>= 0.2.1), libunwind7-dev [ia64], flex | flex-old
 
-Package: gdb-@gnuarch@
-Architecture: any
-Section: host-tools
+Package: @gdbpkg@
+Architecture: @gdbpkgarch@
+Section: @gdbpkgsection@
 Depends: ${shlibs:Depends}
 Description: The GNU Debugger
  GDB is a source-level debugger, capable of breaking programs at
@@ -22,13 +22,6 @@ Section: debug
 Depends: ${shlibs:Depends}
 Description: The GNU Debugger
  This package contains gdbserver for the target architecture.
-
-Package: gdb
-Architecture: @arch@
-Section: debug
-Depends: ${shlibs:Depends}
-Description: The GNU Debugger
- This package contains full target gdb for the target architecture.
 
 Package: gdb-source
 Architecture: all

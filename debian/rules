@@ -14,8 +14,14 @@ p_src := gdb-source
 
 ifneq (,$(findstring target,$(SLIND_BUILD_OPTIONS)))
  PACKAGES := gdbserver gdb
+ gdbpkg        := gdb
+ gdbpkgarch    := $(DEB_HOST_ARCH)
+ gdbpkgsection := debug
 else
  PACKAGES := gdb-$(DEB_HOST_GNU_TYPE) gdbserver
+ gdbpkg        := gdb-$(DEB_HOST_GNU_TYPE)
+ gdbpkgarch    := $(DEB_BUILD_ARCH)
+ gdbpkgsection := host-tools
 endif
 
 NJOBS :=$(shell getconf _NPROCESSORS_ONLN)
@@ -51,7 +57,9 @@ unpack: unpack-stamp
 unpack-stamp:
 	# generate debian/control
 	sed \
-		-e 's/@gnuarch@/$(DEB_HOST_GNU_TYPE)/' \
+		-e 's/@gdbpkg@/$(gdbpkg)/' \
+		-e 's/@gdbpkgarch@/$(gdbpkgarch)/' \
+		-e 's/@gdbpkgsection@/$(gdbpkgsection)/' \
 		-e 's/@arch@/$(DEB_HOST_ARCH)/' \
 		< debian/control.in \
 		> debian/control
@@ -154,17 +162,20 @@ binary-arch: build install
 	dh_compress
 	dh_fixperms
 	dh_installdeb
+
+ifneq (,$(findstring target,$(SLIND_BUILD_OPTIONS)))
+	# target gdb
+	DPKGCROSSARCH=$(DEB_HOST_ARCH) dh_shlibdeps -pgdb
+	DEB_HOST_ARCH=$(DEB_HOST_ARCH) dh_gencontrol -pgdb
+else
 	# cross gdb
 	DEB_HOST_ARCH=$(DEB_BUILD_ARCH) dh_shlibdeps -pgdb-$(DEB_HOST_GNU_TYPE)
 	DEB_HOST_ARCH=$(DEB_BUILD_ARCH) dh_gencontrol -pgdb-$(DEB_HOST_GNU_TYPE)
+endif
 
 	# target gdbserver
 	DPKGCROSSARCH=$(DEB_HOST_ARCH) dh_shlibdeps -pgdbserver
 	DEB_HOST_ARCH=$(DEB_HOST_ARCH) dh_gencontrol -pgdbserver
-
-	# target gdb
-	DPKGCROSSARCH=$(DEB_HOST_ARCH) dh_shlibdeps -pgdb
-	DEB_HOST_ARCH=$(DEB_HOST_ARCH) dh_gencontrol -pgdb
 	
 	# gdb-source
 	dh_gencontrol -pgdb-source
