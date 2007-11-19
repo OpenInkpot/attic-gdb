@@ -134,6 +134,7 @@ install: build
 	done
 
 	# kludges
+	rm -f $(DEB_SRCDIR)/debian/gdb-$(DEB_HOST_GNU_TYPE)/usr/lib/libiberty.a
 	rm -rf $(DEB_SRCDIR)/debian/gdb-$(DEB_HOST_GNU_TYPE)/usr/share/locale
 	rm -rf $(DEB_SRCDIR)/debian/gdb-$(DEB_HOST_GNU_TYPE)/usr/share/info
 
