@@ -3,9 +3,9 @@ Maintainer: Alexander Shishkin <virtuoso@slind.org>
 Section: host-tools
 Priority: standard
 Standards-Version: 3.6.2
-XCS-Cross-Host-Build-Depends: autoconf, libtool, texinfo (>= 4.7-2.2), tetex-bin, (>= 4.2a-1), bison, gettext, debhelper (>= 4.9.0), quilt (>= 0.30-1), flex, libreadline5-dev
+XCS-Cross-Host-Build-Depends: autoconf, libtool, texinfo (>= 4.7-2.2), tetex-bin, bison, gettext, debhelper (>= 4.9.0), quilt (>= 0.30-1), flex, libreadline5-dev
 XCS-Cross-Build-Depends: libreadline5-dev
-Build-Depends: autoconf, libtool, texinfo (>= 4.7-2.2), tetex-bin, libncurses5-dev, (>= 4.2a-1), bison, gettext, debhelper (>= 4.9.0), quilt (>= 0.30-1), type-handling (>= 0.2.1), flex
+Build-Depends: autoconf, libtool, texinfo (>= 4.7-2.2), tetex-bin, libncurses5-dev, bison, gettext, debhelper (>= 4.9.0), quilt (>= 0.30-1), type-handling (>= 0.2.1), flex
 
 Package: gdb-arm-linux-gnu
 Architecture: any
